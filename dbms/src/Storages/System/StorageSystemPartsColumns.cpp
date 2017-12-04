@@ -96,6 +96,7 @@ BlockInputStreams StorageSystemPartsColumns::read(
         database_column = block_to_filter.getByName("database").column;
         size_t rows = database_column->size();
 
+        IColumn::Offsets_t offsets(rows);
         ColumnPtr table_column = std::make_shared<ColumnString>();
         ColumnPtr engine_column = std::make_shared<ColumnString>();
         ColumnPtr active_column = std::make_shared<ColumnUInt8>();
@@ -105,6 +106,7 @@ BlockInputStreams StorageSystemPartsColumns::read(
             String database_name = (*database_column)[i].get<String>();
             const DatabasePtr database = databases.at(database_name);
 
+            offsets[i] = i ? offsets[i - 1] : 0;
             for (auto iterator = database->getIterator(context); iterator->isValid(); iterator->next())
             {
                 String table_name = iterator->name();
@@ -124,7 +126,15 @@ BlockInputStreams StorageSystemPartsColumns::read(
                     engine_column->insert(engine_name);
                     active_column->insert(active);
                 }
+
+                offsets[i] += 2;
             }
+        }
+
+        for (size_t i = 0; i < block_to_filter.columns(); ++i)
+        {
+            ColumnPtr & column = block_to_filter.safeGetByPosition(i).column;
+            column = column->replicate(offsets);
         }
 
         block_to_filter.insert(ColumnWithTypeAndName(table_column, std::make_shared<DataTypeString>(), "table"));
