@@ -118,7 +118,7 @@ BlockInputStreams StorageSystemPartsColumns::read(
                 storages[std::make_pair(database_name, iterator->name())] = storage;
 
                 /// Add all combinations of flag 'active'.
-                for (auto active : {0, 1})
+                for (UInt64 active : {0, 1})
                 {
                     table_column->insert(table_name);
                     engine_column->insert(engine_name);
