@@ -13,6 +13,7 @@
 #include <DataStreams/CollapsingSortedBlockInputStream.h>
 #include <DataStreams/SummingSortedBlockInputStream.h>
 #include <DataStreams/ReplacingSortedBlockInputStream.h>
+#include <DataStreams/VersionedSortedBlockInputStream.h>
 #include <DataStreams/GraphiteRollupSortedBlockInputStream.h>
 #include <DataStreams/AggregatingSortedBlockInputStream.h>
 #include <DataStreams/MaterializingBlockInputStream.h>
@@ -321,6 +322,11 @@ static void extractMergingAndGatheringColumns(const NamesAndTypesList & all_colu
     if (merging_params.mode == MergeTreeData::MergingParams::Replacing)
         key_columns.emplace(merging_params.version_column);
 
+    /// Force sign and version column for Versioned mode
+    if (merging_params.mode == MergeTreeData::MergingParams::Versioned)
+        key_columns.emplace(merging_params.sign_column);
+        key_columns.emplace(merging_params.sign_column);
+
     /// TODO: also force "summing" and "aggregating" columns to make Horizontal merge only for such columns
 
     for (auto & column : all_columns)
@@ -602,6 +608,11 @@ MergeTreeData::MutableDataPartPtr MergeTreeDataMerger::mergePartsToTemporaryPart
                 src_streams, sort_desc, data.merging_params.version_column, DEFAULT_MERGE_BLOCK_SIZE, rows_sources_write_buf.get());
             break;
 
+        case MergeTreeData::MergingParams::Versioned:
+            merged_stream = std::make_unique<VersionedSortedBlockInputStream>(
+                    src_streams, sort_desc, data.merging_params.sign_column, data.merging_params.version_column, DEFAULT_MERGE_BLOCK_SIZE, rows_sources_write_buf.get());
+            break;
+
         case MergeTreeData::MergingParams::Graphite:
             merged_stream = std::make_unique<GraphiteRollupSortedBlockInputStream>(
                 src_streams, sort_desc, DEFAULT_MERGE_BLOCK_SIZE,
@@ -774,6 +785,7 @@ MergeTreeDataMerger::MergeAlgorithm MergeTreeDataMerger::chooseMergeAlgorithm(
     bool is_supported_storage =
         data.merging_params.mode == MergeTreeData::MergingParams::Ordinary ||
         data.merging_params.mode == MergeTreeData::MergingParams::Collapsing ||
+        data.merging_params.mode == MergeTreeData::MergingParams::Versioned ||
         data.merging_params.mode == MergeTreeData::MergingParams::Replacing;
 
     bool enough_ordinary_cols = gathering_columns.size() >= data.context.getMergeTreeSettings().vertical_merge_algorithm_min_columns_to_activate;
@@ -983,6 +995,11 @@ MergeTreeData::PerShardDataParts MergeTreeDataMerger::reshardPartition(
         case MergeTreeData::MergingParams::Replacing:
             merged_stream = std::make_unique<ReplacingSortedBlockInputStream>(
                 src_streams, data.getSortDescription(), data.merging_params.version_column, DEFAULT_MERGE_BLOCK_SIZE);
+            break;
+
+        case MergeTreeData::MergingParams::Versioned:
+            merged_stream = std::make_unique<ReplacingSortedBlockInputStream>(
+                    src_streams, data.getSortDescription(), data.merging_params.sign_column, data.merging_params.version_column, DEFAULT_MERGE_BLOCK_SIZE);
             break;
 
         case MergeTreeData::MergingParams::Graphite:
