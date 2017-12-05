@@ -274,10 +274,10 @@ void MergeTreeData::initPartitionKey()
 void MergeTreeData::MergingParams::check(const NamesAndTypesList & columns) const
 {
     /// Check that if the sign column is needed, it exists and is of type Int8.
-    if (mode == MergingParams::Collapsing)
+    if (mode == MergingParams::Collapsing || mode == MergingParams::Versioned)
     {
         if (sign_column.empty())
-            throw Exception("Logical error: Sign column for storage CollapsingMergeTree is empty", ErrorCodes::LOGICAL_ERROR);
+            throw Exception("Logical error: Sign column for storage CollapsingMergeTree/VersionedMergeTree is empty", ErrorCodes::LOGICAL_ERROR);
 
         for (const auto & column : columns)
         {
@@ -285,14 +285,14 @@ void MergeTreeData::MergingParams::check(const NamesAndTypesList & columns) cons
             {
                 if (!typeid_cast<const DataTypeInt8 *>(column.type.get()))
                     throw Exception("Sign column (" + sign_column + ")"
-                        " for storage CollapsingMergeTree must have type Int8."
+                        " for storage CollapsingMergeTree/VersionedMergeTree must have type Int8."
                         " Provided column of type " + column.type->getName() + ".", ErrorCodes::BAD_TYPE_OF_FIELD);
                 break;
             }
         }
     }
     else if (!sign_column.empty())
-        throw Exception("Sign column for MergeTree cannot be specified in all modes except Collapsing.", ErrorCodes::LOGICAL_ERROR);
+        throw Exception("Sign column for MergeTree cannot be specified in all modes except Collapsing or Versioned.", ErrorCodes::LOGICAL_ERROR);
 
     /// If colums_to_sum are set, then check that such columns exist.
     if (!columns_to_sum.empty())
@@ -307,11 +307,11 @@ void MergeTreeData::MergingParams::check(const NamesAndTypesList & columns) cons
                 throw Exception("Column " + column_to_sum + " listed in columns to sum does not exist in table declaration.");
     }
 
-    /// Check that version_column column is set only for Replacing mode and is of unsigned integer type.
+    /// Check that version_column column is set only for Replacing mode or Versioned and is of unsigned integer type.
     if (!version_column.empty())
     {
-        if (mode != MergingParams::Replacing)
-            throw Exception("Version column for MergeTree cannot be specified in all modes except Replacing.",
+        if (mode != MergingParams::Replacing || mode != MergingParams::Versioned)
+            throw Exception("Version column for MergeTree cannot be specified in all modes except Replacing or Versioned.",
                 ErrorCodes::LOGICAL_ERROR);
 
         for (const auto & column : columns)
@@ -325,7 +325,7 @@ void MergeTreeData::MergingParams::check(const NamesAndTypesList & columns) cons
                     && !typeid_cast<const DataTypeDate *>(column.type.get())
                     && !typeid_cast<const DataTypeDateTime *>(column.type.get()))
                     throw Exception("Version column (" + version_column + ")"
-                        " for storage ReplacingMergeTree must have type of UInt family or Date or DateTime."
+                        " for storage ReplacingMergeTree or VersionedMergeTree must have type of UInt family or Date or DateTime."
                         " Provided column of type " + column.type->getName() + ".", ErrorCodes::BAD_TYPE_OF_FIELD);
                 break;
             }
@@ -347,6 +347,7 @@ String MergeTreeData::MergingParams::getModeName() const
         case Unsorted:      return "Unsorted";
         case Replacing:     return "Replacing";
         case Graphite:      return "Graphite";
+        case Versioned:     return "Versioned";
 
         default:
             throw Exception("Unknown mode of operation for MergeTreeData: " + toString<int>(mode), ErrorCodes::LOGICAL_ERROR);
