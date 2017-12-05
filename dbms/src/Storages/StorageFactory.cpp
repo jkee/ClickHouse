@@ -820,6 +820,8 @@ StoragePtr StorageFactory::get(
             merging_params.mode = MergeTreeData::MergingParams::Unsorted;
         else if (name_part == "Replacing")
             merging_params.mode = MergeTreeData::MergingParams::Replacing;
+        else if (name_part == "Versioned")
+            merging_params.mode = MergeTreeData::MergingParams::Versioned;
         else if (name_part == "Graphite")
             merging_params.mode = MergeTreeData::MergingParams::Graphite;
         else if (!name_part.empty())
@@ -897,6 +899,10 @@ StoragePtr StorageFactory::get(
         case MergeTreeData::MergingParams::Replacing:
             add_optional_param("version");
             break;
+        case MergeTreeData::MergingParams::Versioned:
+            add_mandatory_param("sign column");
+            add_mandatory_param("version");
+            break;
         case MergeTreeData::MergingParams::Collapsing:
             add_mandatory_param("sign column");
             break;
@@ -967,6 +973,27 @@ StoragePtr StorageFactory::get(
                 throw Exception(
                     "Sign column name must be an unquoted string" + getMergeTreeVerboseHelp(is_extended_storage_def),
                     ErrorCodes::BAD_ARGUMENTS);
+
+            args.pop_back();
+        }
+        if (merging_params.mode == MergeTreeData::MergingParams::Versioned)
+        {
+            // Last one is version column
+            if (auto ast = typeid_cast<ASTIdentifier *>(&*args.back()))
+                merging_params.version_column = ast->name;
+            else
+                throw Exception(
+                        "Version column name must be an unquoted string" + getMergeTreeVerboseHelp(is_extended_storage_def),
+                        ErrorCodes::BAD_ARGUMENTS);
+
+            args.pop_back();
+            // Previous one is sign column
+            if (auto ast = typeid_cast<ASTIdentifier *>(&*args.back()))
+                merging_params.sign_column = ast->name;
+            else
+                throw Exception(
+                        "Sign column name must be an unquoted string" + getMergeTreeVerboseHelp(is_extended_storage_def),
+                        ErrorCodes::BAD_ARGUMENTS);
 
             args.pop_back();
         }

@@ -250,6 +250,7 @@ public:
             Unsorted    = 4,
             Replacing   = 5,
             Graphite    = 6,
+            Versioned   = 7,
         };
 
         Mode mode;
@@ -260,7 +261,7 @@ public:
         /// For Summing mode. If empty - columns_to_sum is determined automatically.
         Names columns_to_sum;
 
-        /// For Replacing mode. Can be empty.
+        /// For Replacing or Versioned mode. Can be empty for Replacing, mandatory for Versioned.
         String version_column;
 
         /// For Graphite mode.
