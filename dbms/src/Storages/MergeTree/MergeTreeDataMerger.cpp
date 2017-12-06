@@ -324,8 +324,10 @@ static void extractMergingAndGatheringColumns(const NamesAndTypesList & all_colu
 
     /// Force sign and version column for Versioned mode
     if (merging_params.mode == MergeTreeData::MergingParams::Versioned)
+    {
         key_columns.emplace(merging_params.sign_column);
         key_columns.emplace(merging_params.sign_column);
+    }
 
     /// TODO: also force "summing" and "aggregating" columns to make Horizontal merge only for such columns
 
@@ -998,7 +1000,7 @@ MergeTreeData::PerShardDataParts MergeTreeDataMerger::reshardPartition(
             break;
 
         case MergeTreeData::MergingParams::Versioned:
-            merged_stream = std::make_unique<ReplacingSortedBlockInputStream>(
+            merged_stream = std::make_unique<VersionedSortedBlockInputStream>(
                     src_streams, data.getSortDescription(), data.merging_params.sign_column, data.merging_params.version_column, DEFAULT_MERGE_BLOCK_SIZE);
             break;
 
