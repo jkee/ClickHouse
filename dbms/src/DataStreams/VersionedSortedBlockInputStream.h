@@ -46,11 +46,11 @@ protected:
     Block readImpl() override;
 
 private:
-    String version_column;
-    ssize_t version_column_number = 0;
-
     String sign_column;
     size_t sign_column_number = 0;
+
+    String version_column;
+    size_t version_column_number = 0;
 
     Logger * log = &Logger::get("VersionedSortedBlockInputStream");
 
